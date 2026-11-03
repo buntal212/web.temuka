@@ -47,10 +47,32 @@
             {{ example }}
           </button>
         </div>
-        <p v-if="hasSearched" class="search-status" role="status" aria-live="polite">
-          {{ resultCount }} hasil pada data demonstrasi.
-          <a href="#rekomendasi">Lihat hasil</a>
-        </p>
+        <div v-if="hasSearched || isSearching" class="search-progressive" role="status" aria-live="polite">
+          <div v-if="isSearching" class="search-progressive__loading">
+            <q-spinner-dots size="1.2rem" color="secondary" />
+            <span>Mencari secara bertahap dari seluruh sumber...</span>
+          </div>
+          <div v-if="Object.keys(sourcesStatus).length > 0" class="search-progressive__chips">
+            <span
+              v-for="(info, srcKey) in sourcesStatus"
+              :key="srcKey"
+              class="source-chip"
+              :class="'source-chip--' + info.status"
+            >
+              <q-spinner-tail v-if="info.status === 'pending'" size="0.75rem" />
+              <q-icon v-else-if="info.status === 'completed'" name="check_circle" size="0.85rem" />
+              <q-icon v-else-if="info.status === 'failed'" name="error_outline" size="0.85rem" />
+              {{ formatSourceName(srcKey) }}:
+              <strong v-if="info.status === 'completed'">{{ info.count }} hasil</strong>
+              <strong v-else-if="info.status === 'failed'">Gagal</strong>
+              <span v-else>Memuat...</span>
+            </span>
+          </div>
+          <p class="search-status">
+            {{ resultCount }} hasil ditemukan.
+            <a href="#rekomendasi">Lihat hasil</a>
+          </p>
+        </div>
       </div>
 
       <div class="hero-collage" aria-label="Contoh visual kategori Temuka">
@@ -97,7 +119,9 @@
 defineProps({
   modelValue: { type: String, default: '' },
   hasSearched: { type: Boolean, default: false },
+  isSearching: { type: Boolean, default: false },
   resultCount: { type: Number, default: 0 },
+  sourcesStatus: { type: Object, default: () => ({}) },
 })
 
 const emit = defineEmits(['update:modelValue', 'search'])
@@ -112,6 +136,13 @@ const images = {
 
 function chooseExample(value) {
   emit('update:modelValue', value)
+}
+
+function formatSourceName(code) {
+  if (code === 'mock_larissama') return 'Kuliner'
+  if (code === 'mock_laundry') return 'Laundry'
+  if (code === 'mock_aset') return 'Aset'
+  return code
 }
 </script>
 
@@ -216,6 +247,54 @@ h1 {
   margin-left: 0.35rem;
   color: var(--temuka-gold);
   font-weight: 750;
+}
+
+.search-progressive {
+  margin-top: 1rem;
+}
+
+.search-progressive__loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--temuka-gold);
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.search-progressive__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  background: rgb(255 255 255 / 10%);
+  color: white;
+  border: 1px solid rgb(255 255 255 / 15%);
+}
+
+.source-chip--pending {
+  border-color: var(--temuka-gold);
+  color: var(--temuka-gold);
+}
+
+.source-chip--completed {
+  border-color: #4caf50;
+  color: #a5d6a7;
+}
+
+.source-chip--failed {
+  border-color: #ef5350;
+  color: #ef9a9a;
 }
 
 .hero-collage {

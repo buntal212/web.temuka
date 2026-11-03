@@ -2,39 +2,46 @@
 
 ## Tujuan
 
-Menjadi halaman publik awal Temuka dan memperkenalkan kategori kebutuhan pelanggan. Konten rekomendasi dan gambar pada tahap ini hanya untuk demonstrasi.
+Menjadi halaman publik awal Temuka dan memperkenalkan kategori kebutuhan pelanggan. Menyediakan fitur pencarian katalog progresif (*progressive delivery*) menggunakan SSE melalui Temuka Backend.
 
 ## Halaman dan route
 
 - `pages/BerandaPage.vue` — route `/`.
 - Route detail, pencarian khusus, favorit, pesan, dan akun belum dibuat.
-- Preview visual detail akan direncanakan bersama halaman detail di plan berikutnya; PLAN-01 tidak menambahkan route detail.
 
 ## Komponen utama
 
 - `DesktopHeader.vue` dan `MobileHeader.vue` — navigasi responsif.
-- `HeroSection.vue` — headline, pencarian lokal, dan contoh kata pencarian.
+- `HeroSection.vue` — headline, input pencarian dengan debounce ~600 ms, indikator status sumber progresif, dan contoh pencarian.
 - `CategoryShortcutGrid.vue` dan `CategoryExplorer.vue` — filter kategori demonstrasi.
-- Shortcut kategori memakai ikon Material dengan warna pastel yang mengikuti referensi pengguna.
-- `BenefitSection.vue`, `RecommendationSection.vue`, `ProductCard.vue`, dan `PromoSection.vue` — konten homepage.
-- `MobileBottomNav.vue` — navigasi mobile; menu yang belum didukung dinonaktifkan.
+- `BenefitSection.vue`, `RecommendationSection.vue`, `ProductCard.vue`, dan `PromoSection.vue` — konten homepage dan rendering katalog hasil pencarian.
+- `MobileBottomNav.vue` — navigasi mobile.
 - `AppFooter.vue` — identitas serta navigasi kategori.
 
-## API dan alur data
+## Pencarian Katalog Progresif (SSE)
 
-Belum ada endpoint produk atau kategori yang disepakati. `data/homepageMockData.js` menyimpan kategori, manfaat, gambar, dan kartu rekomendasi untuk tampilan demo. `BerandaPage.vue` mengelola kata kunci, kategori terpilih, dan hasil filter dengan state lokal. Lokasi hanya tampil sebagai informasi pada kartu demo; tidak ada pemilih atau filter lokasi. Tidak ada request API dari modul ini.
-
-Gambar saat ini dimuat dari URL Unsplash sebagai ilustrasi. Kartu memuat fallback visual jika gambar gagal dimuat. Ganti dengan aset yang disetujui atau media API Temuka saat sumber final tersedia.
-
-Logo TEMUKA menggunakan aset `public/images/temuka_512px.png` dan `public/images/temuka_192px.png`. Karena wordmark berwarna terang, tampilkan di atas surface hijau agar tetap terbaca.
+Pencarian menggunakan arsitektur **Latest Search Wins**:
+1. Input kata kunci memiliki debounce ~600 ms.
+2. Setiap pencarian mengirim request `POST /api/v1/catalog/search` dengan header `Accept: text/event-stream` ke Temuka Backend.
+3. Event `search_init`, `source_result`, `source_failed`, dan `search_done` diproses secara incremental melalui utilitas `src/shared/utils/sse-parser.js`.
+4. Jika pengguna mengetik kata kunci baru saat pencarian lama masih berjalan, pencarian lama tetap dibiarkan selesai tanpa `AbortController`, namun event dari pencarian lama secara otomatis diabaikan (*stale check via searchId*).
+5. Hasil penawaran kanonis dari setiap aplikasi sumber langsung dimunculkan ke `RecommendationSection` segera setelah sumber tersebut selesai.
+6. Status pemrosesan tiap sumber (memuat, selesai dengan jumlah item, atau gagal) ditampilkan pada chip status di `HeroSection`.
 
 ## State management
 
-Menggunakan `ref` dan `computed` lokal pada halaman. Pinia belum diperlukan.
+- `composables/useCatalogSearch.js` mengelola state pencarian progresif: `searchTerm`, `isSearching`, `hasSearched`, `activeSearchId`, `searchResults`, dan `sourcesStatus`.
+- State kategori dan filter demo tetap dikelola secara lokal pada `BerandaPage.vue`.
 
 ## Cara menguji
 
-1. Jalankan `npm run dev` dan buka `/`.
-2. Coba pencarian “Nasi ayam”, “Rumah dijual”, atau “Laundry kiloan”.
-3. Pilih kategori atau cari kata kunci, lalu lihat hasil demo atau empty state.
-4. Periksa route tak dikenal dan ukuran layar sesuai plan.
+1. Jalankan unit test:
+   ```bash
+   node --test test/*.test.js
+   ```
+2. Jalankan aplikasi web:
+   ```bash
+   npm run dev
+   ```
+3. Buka browser dan ketik kata kunci (misal: "Nasi", "Cuci", "Rumah") pada kolom pencarian hero section.
+4. Perhatikan pembaruan status sumber dan kemunculan kartu hasil secara bertahap.

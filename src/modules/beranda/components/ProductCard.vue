@@ -1,12 +1,12 @@
 <template>
   <article class="product-card">
     <div class="product-card__image image-frame">
-      <q-img :src="item.image" :alt="item.imageAlt" ratio="1.55" loading="lazy">
+      <q-img :src="displayImage" :alt="displayName" ratio="1.55" loading="lazy">
         <template #error>
           <div class="product-card__fallback"><q-icon name="image" aria-hidden="true" /></div>
         </template>
       </q-img>
-      <span class="product-card__category">{{ item.category }}</span>
+      <span class="product-card__category">{{ displayCategory }}</span>
       <q-btn
         class="product-card__favorite"
         round
@@ -22,21 +22,53 @@
     <div class="product-card__details">
       <div class="product-card__title-row">
         <div>
-          <h3>{{ item.name }}</h3>
-          <p class="product-card__provider">{{ item.provider }}</p>
+          <h3>{{ displayName }}</h3>
+          <p class="product-card__provider">{{ displayProvider }}</p>
         </div>
       </div>
       <div class="product-card__meta">
-        <span><q-icon name="place" aria-hidden="true" /> {{ item.location }}</span>
-        <strong>{{ item.price }}</strong>
+        <span><q-icon name="place" aria-hidden="true" /> {{ displayLocation }}</span>
+        <strong>{{ displayMetaRight }}</strong>
       </div>
-      <span class="product-card__demo">Contoh tampilan</span>
+      <span class="product-card__demo">{{ displayBadge }}</span>
     </div>
   </article>
 </template>
 
 <script setup>
-defineProps({ item: { type: Object, required: true } })
+import { computed } from 'vue'
+
+const props = defineProps({ item: { type: Object, required: true } })
+
+const displayName = computed(() => props.item.offer?.name || props.item.name || 'Tanpa Nama')
+const displayProvider = computed(() => props.item.provider?.name || props.item.provider || 'Penyedia')
+const displayLocation = computed(() => props.item.location?.address || props.item.location || 'Lokasi umum')
+const displayImage = computed(() => props.item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80')
+
+const displayCategory = computed(() => {
+  if (props.item.source?.code) {
+    const code = props.item.source.code
+    if (code === 'mock_larissama') return 'Kuliner'
+    if (code === 'mock_laundry') return 'Laundry'
+    if (code === 'mock_aset') return 'Aset'
+    return code
+  }
+  return props.item.category || 'Katalog'
+})
+
+const displayMetaRight = computed(() => {
+  if (props.item.price) return props.item.price
+  if (props.item.operational_status === 'open') return 'Buka sekarang'
+  if (props.item.availability === 'available') return 'Tersedia'
+  return props.item.offer?.type || 'Tersedia'
+})
+
+const displayBadge = computed(() => {
+  if (props.item.source?.code) {
+    return `Sumber: ${props.item.source.code}`
+  }
+  return 'Contoh tampilan'
+})
 </script>
 
 <style scoped lang="scss">

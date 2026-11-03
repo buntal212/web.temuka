@@ -1,0 +1,75 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { consumeSseStream } from '../src/shared/utils/sse-parser.js'
+
+function createMockReader(chunks) {
+  const encoder = new TextEncoder()
+  let index = 0
+
+  return {
+    async read() {
+      if (index >= chunks.length) {
+        return { done: true, value: undefined }
+      }
+      const val = encoder.encode(chunks[index++])
+      return { done: false, value: val }
+    },
+    releaseLock() {},
+  }
+}
+
+test('consumeSseStream correctly parses standard events', async () => {
+  const chunks = [
+    'event: search_init\ndata: {"search_id":"s1","targets":["mock_larissama"]}\n\n',
+    'event: source_result\ndata: {"search_id":"s1","source":"mock_larissama","items_count":1}\n\n',
+    'event: search_done\ndata: {"search_id":"s1","total_items":1}\n\n',
+  ]
+
+  const events = []
+  await consumeSseStream(createMockReader(chunks), (event, data) => {
+    events.push({ event, data })
+  })
+
+  assert.equal(events.length, 3)
+  assert.equal(events[0].event, 'search_init')
+  assert.equal(events[0].data.search_id, 's1')
+  assert.equal(events[1].event, 'source_result')
+  assert.equal(events[1].data.source, 'mock_larissama')
+  assert.equal(events[2].event, 'search_done')
+  assert.equal(events[2].data.total_items, 1)
+})
+
+test('consumeSseStream handles events split across chunk boundaries', async () => {
+  // Split event data in half
+  const chunks = [
+    'event: source_result\ndata: {"search_id":"s2",',
+    '"source":"mock_laundry","items_count":2}\n\n',
+  ]
+
+  const events = []
+  await consumeSseStream(createMockReader(chunks), (event, data) => {
+    events.push({ event, data })
+  })
+
+  assert.equal(events.length, 1)
+  assert.equal(events[0].event, 'source_result')
+  assert.equal(events[0].data.search_id, 's2')
+  assert.equal(events[0].data.source, 'mock_laundry')
+  assert.equal(events[0].data.items_count, 2)
+})
+
+test('consumeSseStream handles source_failed event', async () => {
+  const chunks = [
+    'event: source_failed\ndata: {"search_id":"s3","source":"mock_aset","status":"failed","error_code":"TIMEOUT"}\n\n',
+  ]
+
+  const events = []
+  await consumeSseStream(createMockReader(chunks), (event, data) => {
+    events.push({ event, data })
+  })
+
+  assert.equal(events.length, 1)
+  assert.equal(events[0].event, 'source_failed')
+  assert.equal(events[0].data.source, 'mock_aset')
+  assert.equal(events[0].data.error_code, 'TIMEOUT')
+})

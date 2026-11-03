@@ -7,8 +7,10 @@
       <HeroSection
         v-model="searchTerm"
         :has-searched="hasSearched"
-        :result-count="visibleRecommendations.length"
-        @search="submitSearch"
+        :is-searching="isSearching"
+        :sources-status="sourcesStatus"
+        :result-count="displayItems.length"
+        @search="triggerSearchNow"
       />
 
       <CategoryShortcutGrid
@@ -21,9 +23,11 @@
       <BenefitSection :benefits="benefits" />
 
       <RecommendationSection
-        :items="visibleRecommendations"
+        :items="displayItems"
         :has-filter="hasFilter"
         :filter-description="filterDescription"
+        :is-searching="isSearching"
+        :has-searched="hasSearched"
         @clear-filter="clearFilters"
       />
 
@@ -53,6 +57,7 @@ import MobileBottomNav from '../components/MobileBottomNav.vue'
 import MobileHeader from '../components/MobileHeader.vue'
 import PromoSection from '../components/PromoSection.vue'
 import RecommendationSection from '../components/RecommendationSection.vue'
+import { useCatalogSearch } from '../composables/useCatalogSearch'
 import { benefits, categories, exploreCategories, recommendations } from '../data/homepageMockData'
 
 useMeta({
@@ -71,53 +76,53 @@ useMeta({
   },
 })
 
-const searchTerm = ref('')
+const {
+  searchTerm,
+  isSearching,
+  hasSearched,
+  searchResults,
+  sourcesStatus,
+  triggerSearchNow,
+} = useCatalogSearch()
+
 const selectedCategory = ref('')
-const hasSearched = ref(false)
 
 const hasFilter = computed(() => hasSearched.value || Boolean(selectedCategory.value))
 
 const filterDescription = computed(() => {
   const parts = []
-  if (hasSearched.value && searchTerm.value.trim())
+  if (hasSearched.value && searchTerm.value.trim()) {
     parts.push(`kata kunci “${searchTerm.value.trim()}”`)
-  if (selectedCategory.value) parts.push(`kategori ${selectedCategory.value}`)
+  }
+  if (selectedCategory.value) {
+    parts.push(`kategori ${selectedCategory.value}`)
+  }
   return parts.join(' · ') || 'semua contoh'
 })
 
-const visibleRecommendations = computed(() => {
-  if (!hasFilter.value) return recommendations
+const displayItems = computed(() => {
+  // If active search with query, show progressive catalog results
+  if (hasSearched.value && searchTerm.value.trim()) {
+    return searchResults.value
+  }
 
-  const query = hasSearched.value ? searchTerm.value.trim().toLocaleLowerCase('id-ID') : ''
+  // If category is filtered
+  if (selectedCategory.value) {
+    return recommendations.filter((item) => item.category === selectedCategory.value)
+  }
 
-  return recommendations.filter((item) => {
-    const matchesQuery =
-      !query ||
-      [item.name, item.category, item.provider, item.location]
-        .join(' ')
-        .toLocaleLowerCase('id-ID')
-        .includes(query)
-    const matchesCategory = !selectedCategory.value || item.category === selectedCategory.value
-
-    return matchesQuery && matchesCategory
-  })
+  // Default to initial recommendations
+  return recommendations
 })
-
-function submitSearch() {
-  hasSearched.value = true
-  selectedCategory.value = ''
-}
 
 function selectCategory(category) {
   selectedCategory.value = selectedCategory.value === category ? '' : category
   searchTerm.value = ''
-  hasSearched.value = false
 }
 
 function clearFilters() {
   searchTerm.value = ''
   selectedCategory.value = ''
-  hasSearched.value = false
 }
 </script>
 

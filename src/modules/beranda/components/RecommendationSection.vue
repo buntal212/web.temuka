@@ -7,10 +7,15 @@
     <div class="recommendation-section__heading">
       <div>
         <p class="eyebrow">Pilihan untuk dijelajahi</p>
-        <h2 id="recommendation-title" class="section-heading">Temukan inspirasi hari ini</h2>
+        <h2 id="recommendation-title" class="section-heading">
+          {{ hasSearched ? 'Hasil Pencarian Katalog' : 'Temukan inspirasi hari ini' }}
+        </h2>
         <p class="section-copy">
-          Ini adalah data demonstrasi untuk memperlihatkan tampilan Temuka, bukan daftar penawaran
-          nyata.
+          {{
+            hasSearched
+              ? 'Hasil pencarian dihimpun secara bertahap dari berbagai aplikasi sumber Udumbara.'
+              : 'Ini adalah data demonstrasi untuk memperlihatkan tampilan Temuka, bukan daftar penawaran nyata.'
+          }}
         </p>
       </div>
       <q-btn
@@ -24,15 +29,28 @@
     </div>
 
     <p v-if="hasFilter" class="recommendation-section__filter" aria-live="polite">
-      Filter demo: <strong>{{ filterDescription }}</strong>
+      Filter aktif: <strong>{{ filterDescription }}</strong>
     </p>
 
-    <div v-if="items.length" class="recommendation-grid">
-      <ProductCard v-for="item in items" :key="item.id" :item="item" />
+    <!-- Loading state when searching and no items yet -->
+    <div v-if="isSearching && !items.length" class="recommendation-empty" role="status">
+      <q-spinner-dots size="2.5rem" color="primary" />
+      <p>Sedang mencari dan mengumpulkan penawaran dari sumber-sumber terkait...</p>
     </div>
+
+    <!-- Items Grid -->
+    <div v-else-if="items.length" class="recommendation-grid">
+      <ProductCard
+        v-for="(item, idx) in items"
+        :key="item.id || item.offer?.id || idx"
+        :item="item"
+      />
+    </div>
+
+    <!-- Empty Result State -->
     <div v-else class="recommendation-empty" role="status">
       <q-icon name="search_off" size="2rem" aria-hidden="true" />
-      <p>Tidak ada hasil di data demonstrasi. Coba kata kunci atau kategori lain.</p>
+      <p>Tidak ada hasil yang cocok dengan kata kunci atau kategori yang dicari.</p>
       <q-btn flat color="secondary" label="Tampilkan semua contoh" @click="$emit('clear-filter')" />
     </div>
   </section>
@@ -45,54 +63,60 @@ defineProps({
   items: { type: Array, required: true },
   hasFilter: { type: Boolean, default: false },
   filterDescription: { type: String, default: '' },
+  isSearching: { type: Boolean, default: false },
+  hasSearched: { type: Boolean, default: false },
 })
 
 defineEmits(['clear-filter'])
 </script>
 
 <style scoped lang="scss">
+.recommendation-section {
+  position: relative;
+}
+
 .recommendation-section__heading {
   display: flex;
-  align-items: end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1.5rem;
 }
 
 .recommendation-section__filter {
-  margin: 1.4rem 0 0;
+  margin: 1.25rem 0 0;
   color: var(--temuka-on-dark-muted);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
 }
 
 .recommendation-section__filter strong {
-  color: var(--temuka-on-dark);
+  color: var(--temuka-gold);
 }
 
 .recommendation-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
-  margin-top: 2rem;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  margin-top: clamp(1.75rem, 3.5vw, 2.5rem);
 }
 
 .recommendation-empty {
-  display: grid;
-  min-height: 14rem;
-  justify-items: center;
-  align-content: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 1.5rem;
   margin-top: 2rem;
-  padding: 2rem;
-  border: 1px dashed var(--temuka-dark-border);
+  border: 1px dashed var(--temuka-border);
   border-radius: var(--temuka-radius-card);
-  background: var(--temuka-background-raised);
-  color: var(--temuka-on-dark-muted);
+  background: var(--temuka-surface);
   text-align: center;
+  color: var(--temuka-muted);
+  gap: 0.75rem;
 }
 
 .recommendation-empty p {
-  max-width: 25rem;
-  margin: 0.75rem 0 0;
-  line-height: 1.6;
+  margin: 0;
+  font-size: 0.95rem;
 }
 
 @media (max-width: 1023.98px) {
@@ -102,24 +126,13 @@ defineEmits(['clear-filter'])
 }
 
 @media (max-width: 599.98px) {
-  .recommendation-section {
-    padding-block: 3.5rem;
+  .recommendation-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .recommendation-section__heading {
-    align-items: start;
-  }
-
-  .recommendation-section__heading :deep(.q-btn) {
-    flex: 0 0 auto;
-    padding-inline: 0.2rem;
-    font-size: 0.75rem;
-  }
-
-  .recommendation-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1rem;
-    margin-top: 1.4rem;
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 </style>
