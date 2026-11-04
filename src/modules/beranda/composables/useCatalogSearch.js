@@ -1,5 +1,5 @@
 import { ref, watch } from 'vue'
-import { consumeSseStream } from 'src/shared/utils/sse-parser'
+import { consumeSseStream } from '../../../shared/utils/sse-parser.js'
 
 export function useCatalogSearch(options = {}) {
   const debounceMs = options.debounceMs ?? 600

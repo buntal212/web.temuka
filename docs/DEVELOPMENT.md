@@ -4,7 +4,29 @@
 
 Project memakai Quasar CLI dengan Vite, Vue 3, Pinia, SCSS, ESLint, Prettier, Axios, dan mode SSR Hono. Quasar CLI memerlukan Node 22.22.0 atau lebih baru; Node 22.23.3 tersedia pada lingkungan pengembangan. Gunakan npm.cmd dari PowerShell.
 
-## Menjalankan project
+## Menjalankan project melalui Docker (Direkomendasikan)
+
+Pastikan shared network `temuka-uih-network` sudah dibuat:
+
+```bash
+docker network create temuka-uih-network 2>/dev/null || true
+```
+
+Jalankan container development web:
+
+```bash
+docker compose -p temuka-web-dev up -d --build
+```
+
+Container web akan berjalan pada port host `9000` (`http://localhost:9000`). Dependensi Node.js diinstal secara otomatis di dalam container jika belum tersedia.
+
+Hentikan container:
+
+```bash
+docker compose -p temuka-web-dev stop
+```
+
+## Menjalankan project secara lokal (Host)
 
 ```powershell
 npm.cmd run dev
