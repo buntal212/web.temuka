@@ -3,7 +3,8 @@ import { consumeSseStream } from '../../../shared/utils/sse-parser.js'
 
 export function useCatalogSearch(options = {}) {
   const debounceMs = options.debounceMs ?? 600
-  const apiBaseUrl = options.baseUrl ?? (import.meta.env.VITE_API_BASE_URL?.trim() || 'http://127.0.0.1:8020')
+  const apiBaseUrl =
+    options.baseUrl ?? (import.meta.env?.VITE_API_BASE_URL?.trim() || 'http://127.0.0.1:8020')
 
   const searchTerm = ref('')
   const isSearching = ref(false)
@@ -20,8 +21,14 @@ export function useCatalogSearch(options = {}) {
   }
 
   async function executeSearch(query, searchId) {
+    // If a specific searchId was requested but is no longer the active search identity, ignore it
+    if (searchId && activeSearchId.value && searchId !== activeSearchId.value) {
+      return
+    }
+
     // Latest Search Wins: Set this search as active
-    activeSearchId.value = searchId
+    const currentSearchId = searchId || generateSearchId()
+    activeSearchId.value = currentSearchId
     hasSearched.value = true
     isSearching.value = true
     searchResults.value = []
@@ -38,14 +45,14 @@ export function useCatalogSearch(options = {}) {
           Accept: 'text/event-stream',
         },
         body: JSON.stringify({
-          search_id: searchId,
+          search_id: currentSearchId,
           query: query,
         }),
       })
 
       if (!response.ok) {
         // If the request was for this active search, update status
-        if (searchId === activeSearchId.value) {
+        if (currentSearchId === activeSearchId.value) {
           isSearching.value = false
           searchSummary.value = { error: `HTTP ${response.status}: Gagal memuat katalog` }
         }
@@ -53,7 +60,7 @@ export function useCatalogSearch(options = {}) {
       }
 
       if (!response.body) {
-        if (searchId === activeSearchId.value) {
+        if (currentSearchId === activeSearchId.value) {
           isSearching.value = false
         }
         return
@@ -117,7 +124,7 @@ export function useCatalogSearch(options = {}) {
       })
     } catch (err) {
       // Network error or unexpected exception
-      if (searchId === activeSearchId.value) {
+      if (currentSearchId === activeSearchId.value) {
         isSearching.value = false
         searchSummary.value = { error: err?.message || 'Koneksi terputus' }
       }
@@ -133,7 +140,7 @@ export function useCatalogSearch(options = {}) {
     const trimmed = (newQuery || '').trim()
 
     if (!trimmed) {
-      // Query is cleared
+      // Query is cleared - immediately wipe all previous search state
       hasSearched.value = false
       isSearching.value = false
       activeSearchId.value = ''
@@ -143,8 +150,12 @@ export function useCatalogSearch(options = {}) {
       return
     }
 
+    // Invalidate previous active search immediately by creating new search identity
+    const searchId = generateSearchId()
+    activeSearchId.value = searchId
+    isSearching.value = false
+
     debounceTimer = setTimeout(() => {
-      const searchId = generateSearchId()
       executeSearch(trimmed, searchId)
     }, debounceMs)
   }
@@ -159,12 +170,17 @@ export function useCatalogSearch(options = {}) {
     if (!trimmed) return
 
     const searchId = generateSearchId()
+    activeSearchId.value = searchId
     executeSearch(trimmed, searchId)
   }
 
-  watch(searchTerm, (val) => {
-    handleQueryChange(val)
-  })
+  watch(
+    searchTerm,
+    (val) => {
+      handleQueryChange(val)
+    },
+    { flush: 'sync' },
+  )
 
   return {
     searchTerm,
