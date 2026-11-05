@@ -125,6 +125,7 @@ test('Canonical Catalog v1: useCatalogSearch handles object source and meta.tota
     assert.equal(item.provider.name, 'Warung Makan Bu Rina')
     assert.equal(item.provider.location.address, 'Jl. Kaliurang KM 5 No. 12, Sleman')
     assert.equal(item.source.code, 'mock_larissama')
+    assert.equal(item.source.name, 'Larissama F&B', 'Item must be enriched with parent source name')
 
     // 3. Second progressive source arrives
     stream.pushEvent('source_result', {
@@ -266,4 +267,108 @@ test('Canonical Catalog v1 display logic helper functions work accurately', () =
   assert.equal(minimalCanonicalItem.image, null)
   assert.equal(minimalCanonicalItem.provider.location.address, null)
   assert.equal(minimalCanonicalItem.availability, 'available')
+})
+
+test('Canonical Catalog v1: enriches item source.name when item only has source.code (non-mock ASU)', async () => {
+  const originalFetch = globalThis.fetch
+  const stream = createMockSseStream()
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    body: stream.stream,
+  })
+
+  try {
+    const search = useCatalogSearch({ baseUrl: 'http://localhost:8020', debounceMs: 10 })
+
+    search.searchTerm.value = 'ayam'
+    await delay(25)
+
+    const searchId = search.activeSearchId.value
+
+    // Real ASU non-mock code: 'larissama'
+    stream.pushEvent('search_init', {
+      search_id: searchId,
+      targets: ['larissama'],
+    })
+    await delay(10)
+
+    assert.equal(search.sourcesStatus.value.larissama.name, 'Larissama F&B')
+    assert.equal(search.sourcesStatus.value.larissama.status, 'pending')
+
+    // Item only has source: { code: 'larissama' } (like UIH normalizeItem produces)
+    stream.pushEvent('source_result', {
+      search_id: searchId,
+      status: 'completed',
+      source: {
+        code: 'larissama',
+        name: 'Larissama F&B',
+      },
+      data: [
+        {
+          id: 'lrs-real-01',
+          name: 'Ayam Bakar Madu',
+          price: { amount: 30000, currency: 'IDR' },
+          source: { code: 'larissama' }, // Notice: no name field initially
+        },
+      ],
+      meta: { total: 1 },
+    })
+    await delay(10)
+
+    assert.equal(search.searchResults.value.length, 1)
+    const item = search.searchResults.value[0]
+    assert.equal(item.source.code, 'larissama')
+    assert.equal(item.source.name, 'Larissama F&B', 'Item source.name must be enriched from parent event')
+  } finally {
+    stream.close()
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('Canonical Catalog v1: preserves existing non-empty item source.name', async () => {
+  const originalFetch = globalThis.fetch
+  const stream = createMockSseStream()
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    body: stream.stream,
+  })
+
+  try {
+    const search = useCatalogSearch({ baseUrl: 'http://localhost:8020', debounceMs: 10 })
+
+    search.searchTerm.value = 'bebek'
+    await delay(25)
+
+    const searchId = search.activeSearchId.value
+
+    stream.pushEvent('source_result', {
+      search_id: searchId,
+      status: 'completed',
+      source: {
+        code: 'larissama',
+        name: 'Larissama F&B',
+      },
+      data: [
+        {
+          id: 'lrs-specific-01',
+          name: 'Bebek Goreng Renyah',
+          price: { amount: 35000, currency: 'IDR' },
+          source: { code: 'larissama', name: 'Larissama Express Cabang Malioboro' },
+        },
+      ],
+      meta: { total: 1 },
+    })
+    await delay(10)
+
+    assert.equal(search.searchResults.value.length, 1)
+    const item = search.searchResults.value[0]
+    assert.equal(item.source.name, 'Larissama Express Cabang Malioboro')
+  } finally {
+    stream.close()
+    globalThis.fetch = originalFetch
+  }
 })

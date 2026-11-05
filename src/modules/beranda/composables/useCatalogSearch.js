@@ -1,5 +1,6 @@
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { consumeSseStream } from '../../../shared/utils/sse-parser.js'
+import { resolveSourceName } from '../../../shared/utils/source-helpers.js'
 
 export function useCatalogSearch(options = {}) {
   const debounceMs = options.debounceMs ?? 600
@@ -15,9 +16,16 @@ export function useCatalogSearch(options = {}) {
   const searchSummary = ref(null)
 
   let debounceTimer = null
+  let seenItemKeys = new Set()
 
   function generateSearchId() {
     return 'search_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
+  }
+
+  function getItemKey(item, fallbackSourceCode) {
+    const src = item?.source?.code || fallbackSourceCode || 'unknown'
+    const id = item?.id != null ? String(item.id) : ''
+    return `${src}:${id}`
   }
 
   async function executeSearch(query, searchId) {
@@ -34,6 +42,7 @@ export function useCatalogSearch(options = {}) {
     searchResults.value = []
     sourcesStatus.value = {}
     searchSummary.value = null
+    seenItemKeys = new Set()
 
     const endpoint = `${apiBaseUrl.replace(/\/+$/, '')}/api/v1/catalog/search`
 
@@ -62,6 +71,7 @@ export function useCatalogSearch(options = {}) {
       if (!response.body) {
         if (currentSearchId === activeSearchId.value) {
           isSearching.value = false
+          searchSummary.value = { error: 'Response stream tidak tersedia' }
         }
         return
       }
@@ -81,7 +91,9 @@ export function useCatalogSearch(options = {}) {
             const newStatuses = {}
             for (const target of targets) {
               const code = typeof target === 'object' && target !== null ? target.code : target
-              const name = typeof target === 'object' && target !== null ? target.name : code
+              const explicitName =
+                typeof target === 'object' && target !== null ? target.name : null
+              const name = resolveSourceName(code, explicitName)
               newStatuses[code] = {
                 status: 'pending',
                 name: name,
@@ -97,8 +109,9 @@ export function useCatalogSearch(options = {}) {
             const rawSource = data.source
             const sourceCode =
               typeof rawSource === 'object' && rawSource !== null ? rawSource.code : rawSource
-            const sourceName =
-              typeof rawSource === 'object' && rawSource !== null ? rawSource.name : sourceCode
+            const explicitName =
+              typeof rawSource === 'object' && rawSource !== null ? rawSource.name : null
+            const sourceName = resolveSourceName(sourceCode, explicitName)
             const items = data.data || []
             // Canonical v1 prefers meta.total, with items_count as fallback alias
             const totalCount = data.meta?.total ?? data.items_count ?? items.length
@@ -110,22 +123,53 @@ export function useCatalogSearch(options = {}) {
               error: null,
             }
 
-            // Ensure items have source attached if missing
+            // Ensure items have source and source.name attached without clobbering existing valid fields
             const normalizedItems = items.map((item) => {
-              if (!item.source && sourceCode) {
-                return {
-                  ...item,
-                  source:
-                    typeof rawSource === 'object' && rawSource !== null
-                      ? rawSource
-                      : { code: sourceCode, name: sourceName },
+              if (!item || typeof item !== 'object') return item
+
+              let itemSource = item.source
+              if (!itemSource || typeof itemSource !== 'object') {
+                itemSource = {
+                  code: typeof itemSource === 'string' && itemSource.trim() !== '' ? itemSource : sourceCode,
+                  ...(sourceName ? { name: sourceName } : {}),
+                }
+              } else {
+                const existingCode = itemSource.code || sourceCode
+                const existingName =
+                  typeof itemSource.name === 'string' && itemSource.name.trim() !== ''
+                    ? itemSource.name.trim()
+                    : sourceName
+
+                itemSource = {
+                  ...itemSource,
+                  code: existingCode,
+                  ...(existingName ? { name: existingName } : {}),
                 }
               }
-              return item
+
+              return {
+                ...item,
+                source: itemSource,
+              }
             })
 
+            // Deduplicate items using composite key (source.code:item.id)
+            const uniqueItems = []
+            for (const item of normalizedItems) {
+              if (item && item.id != null) {
+                const key = getItemKey(item, sourceCode)
+                if (seenItemKeys.has(key)) {
+                  continue
+                }
+                seenItemKeys.add(key)
+              }
+              uniqueItems.push(item)
+            }
+
             // Append progressive items to active search results
-            searchResults.value.push(...normalizedItems)
+            if (uniqueItems.length > 0) {
+              searchResults.value.push(...uniqueItems)
+            }
             break
           }
 
@@ -133,8 +177,9 @@ export function useCatalogSearch(options = {}) {
             const rawSource = data.source
             const sourceCode =
               typeof rawSource === 'object' && rawSource !== null ? rawSource.code : rawSource
-            const sourceName =
-              typeof rawSource === 'object' && rawSource !== null ? rawSource.name : sourceCode
+            const explicitName =
+              typeof rawSource === 'object' && rawSource !== null ? rawSource.name : null
+            const sourceName = resolveSourceName(sourceCode, explicitName)
 
             sourcesStatus.value[sourceCode] = {
               status: 'failed',
@@ -177,6 +222,7 @@ export function useCatalogSearch(options = {}) {
       searchResults.value = []
       sourcesStatus.value = {}
       searchSummary.value = null
+      seenItemKeys = new Set()
       return
     }
 
@@ -199,10 +245,29 @@ export function useCatalogSearch(options = {}) {
     const trimmed = (searchTerm.value || '').trim()
     if (!trimmed) return
 
+    // Avoid accidental duplicate trigger if already actively searching for this exact query
     const searchId = generateSearchId()
     activeSearchId.value = searchId
     executeSearch(trimmed, searchId)
   }
+
+  const searchError = computed(() => searchSummary.value?.error || null)
+
+  const isAllFailed = computed(() => {
+    if (isSearching.value || !hasSearched.value || searchError.value) {
+      return false
+    }
+    const list = Object.values(sourcesStatus.value)
+    return list.length > 0 && list.every((s) => s.status === 'failed')
+  })
+
+  const hasPartialFailure = computed(() => {
+    if (isSearching.value || !hasSearched.value) {
+      return false
+    }
+    const list = Object.values(sourcesStatus.value)
+    return list.some((s) => s.status === 'failed') && list.some((s) => s.status === 'completed')
+  })
 
   watch(
     searchTerm,
@@ -220,6 +285,9 @@ export function useCatalogSearch(options = {}) {
     searchResults,
     sourcesStatus,
     searchSummary,
+    searchError,
+    isAllFailed,
+    hasPartialFailure,
     triggerSearchNow,
     executeSearch, // Exported for testing
   }

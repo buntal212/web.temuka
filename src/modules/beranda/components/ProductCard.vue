@@ -52,6 +52,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { resolveSourceName } from '../../../shared/utils/source-helpers.js'
 
 const props = defineProps({ item: { type: Object, required: true } })
 
@@ -141,11 +142,12 @@ const displayMetaRight = computed(() => {
 })
 
 const displayBadge = computed(() => {
-  if (props.item.source?.name) {
-    return `Sumber: ${props.item.source.name}`
+  if (typeof props.item.source?.name === 'string' && props.item.source.name.trim() !== '') {
+    return `Sumber: ${props.item.source.name.trim()}`
   }
   if (props.item.source?.code) {
-    return `Sumber: ${props.item.source.code}`
+    const resolvedName = resolveSourceName(props.item.source.code)
+    return `Sumber: ${resolvedName}`
   }
   return 'Contoh tampilan'
 })

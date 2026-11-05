@@ -28,7 +28,11 @@
         :filter-description="filterDescription"
         :is-searching="isSearching"
         :has-searched="hasSearched"
+        :search-error="searchError"
+        :is-all-failed="isAllFailed"
+        :has-partial-failure="hasPartialFailure"
         @clear-filter="clearFilters"
+        @retry="triggerSearchNow"
       />
 
       <CategoryExplorer
@@ -82,6 +86,9 @@ const {
   hasSearched,
   searchResults,
   sourcesStatus,
+  searchError,
+  isAllFailed,
+  hasPartialFailure,
   triggerSearchNow,
 } = useCatalogSearch()
 

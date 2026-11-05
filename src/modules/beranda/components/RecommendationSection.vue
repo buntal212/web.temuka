@@ -38,13 +38,51 @@
       <p>Sedang mencari dan mengumpulkan penawaran dari sumber-sumber terkait...</p>
     </div>
 
-    <!-- Items Grid -->
-    <div v-else-if="items.length" class="recommendation-grid">
-      <ProductCard
-        v-for="(item, idx) in items"
-        :key="item.id || idx"
-        :item="item"
+    <!-- Connection error state (network or backend failure) -->
+    <div v-else-if="searchError && !items.length" class="recommendation-error" role="alert">
+      <q-icon name="cloud_off" size="2.5rem" color="negative" aria-hidden="true" />
+      <h3>Gangguan Koneksi ke Server</h3>
+      <p>{{ searchError }}</p>
+      <q-btn
+        color="primary"
+        unelevated
+        label="Coba Lagi"
+        icon="refresh"
+        :disable="isSearching"
+        @click="$emit('retry')"
       />
+    </div>
+
+    <!-- All sources failed state -->
+    <div v-else-if="isAllFailed && !items.length" class="recommendation-error" role="alert">
+      <q-icon name="report_problem" size="2.5rem" color="negative" aria-hidden="true" />
+      <h3>Layanan Sumber Mengalami Gangguan</h3>
+      <p>Seluruh aplikasi sumber saat ini tidak dapat merespon pencarian. Silakan coba beberapa saat lagi.</p>
+      <q-btn
+        color="primary"
+        unelevated
+        label="Coba Lagi"
+        icon="refresh"
+        :disable="isSearching"
+        @click="$emit('retry')"
+      />
+    </div>
+
+    <!-- Items Grid -->
+    <div v-else-if="items.length">
+      <!-- Partial failure notice -->
+      <div v-if="hasPartialFailure" class="recommendation-notice" role="alert">
+        <q-icon name="warning_amber" size="1.25rem" />
+        <span>Sebagian sumber mengalami gangguan. Menampilkan hasil dari sumber yang berhasil.</span>
+      </div>
+
+      <div class="recommendation-grid">
+        <ProductCard
+          v-for="(item, idx) in items"
+          :key="item.id || idx"
+          :item="item"
+        />
+      </div>
     </div>
 
     <!-- Empty Result State -->
@@ -65,9 +103,12 @@ defineProps({
   filterDescription: { type: String, default: '' },
   isSearching: { type: Boolean, default: false },
   hasSearched: { type: Boolean, default: false },
+  searchError: { type: String, default: null },
+  isAllFailed: { type: Boolean, default: false },
+  hasPartialFailure: { type: Boolean, default: false },
 })
 
-defineEmits(['clear-filter'])
+defineEmits(['clear-filter', 'retry'])
 </script>
 
 <style scoped lang="scss">
@@ -97,6 +138,48 @@ defineEmits(['clear-filter'])
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: clamp(1rem, 2vw, 1.5rem);
   margin-top: clamp(1.75rem, 3.5vw, 2.5rem);
+}
+
+.recommendation-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: clamp(2.5rem, 6vw, 4rem) 1.5rem;
+  margin-top: 1.5rem;
+  border-radius: var(--temuka-radius-card);
+  border: 1px dashed rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.05);
+  text-align: center;
+  color: var(--temuka-on-dark);
+
+  h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 0;
+    color: var(--temuka-on-dark-muted);
+    max-width: 32rem;
+    line-height: 1.5;
+  }
+}
+
+.recommendation-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  margin-top: 1.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.08);
+  color: #fbbf24;
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .recommendation-empty {

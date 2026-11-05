@@ -99,3 +99,51 @@ test('consumeSseStream handles source_failed event', async () => {
   assert.equal(events[0].data.source, 'mock_aset')
   assert.equal(events[0].data.error_code, 'TIMEOUT')
 })
+
+test('consumeSseStream correctly flushes remaining event when stream ends without trailing double newline', async () => {
+  const chunks = [
+    'event: search_init\ndata: {"search_id":"s4","targets":["larissama"]}\n\n',
+    'event: search_done\ndata: {"search_id":"s4","total_items":0}', // Notice: no trailing newline
+  ]
+
+  const events = []
+  await consumeSseStream(createMockReader(chunks), (event, data) => {
+    events.push({ event, data })
+  })
+
+  assert.equal(events.length, 2)
+  assert.equal(events[0].event, 'search_init')
+  assert.equal(events[1].event, 'search_done')
+  assert.equal(events[1].data.search_id, 's4')
+  assert.equal(events[1].data.total_items, 0)
+})
+
+test('consumeSseStream handles malformed JSON without crashing, falling back to raw data', async () => {
+  const chunks = [
+    'event: custom_warning\ndata: { malformed json syntax here\n\n',
+  ]
+
+  const events = []
+  await consumeSseStream(createMockReader(chunks), (event, data) => {
+    events.push({ event, data })
+  })
+
+  assert.equal(events.length, 1)
+  assert.equal(events[0].event, 'custom_warning')
+  assert.equal(events[0].data.raw, '{ malformed json syntax here')
+})
+
+test('consumeSseStream parses multiple events packed into a single chunk', async () => {
+  const singleChunk = [
+    'event: search_init\ndata: {"search_id":"pack_1"}\n\nevent: search_done\ndata: {"search_id":"pack_1"}\n\n',
+  ]
+
+  const events = []
+  await consumeSseStream(createMockReader(singleChunk), (event, data) => {
+    events.push({ event, data })
+  })
+
+  assert.equal(events.length, 2)
+  assert.equal(events[0].event, 'search_init')
+  assert.equal(events[1].event, 'search_done')
+})

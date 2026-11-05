@@ -116,6 +116,8 @@
 </template>
 
 <script setup>
+import { resolveSourceName } from '../../../shared/utils/source-helpers.js'
+
 defineProps({
   modelValue: { type: String, default: '' },
   hasSearched: { type: Boolean, default: false },
@@ -139,10 +141,7 @@ function chooseExample(value) {
 }
 
 function formatSourceName(code) {
-  if (code === 'mock_larissama') return 'Kuliner'
-  if (code === 'mock_laundry') return 'Laundry'
-  if (code === 'mock_aset') return 'Aset'
-  return code
+  return resolveSourceName(code)
 }
 </script>
 

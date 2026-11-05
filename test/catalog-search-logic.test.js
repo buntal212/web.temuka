@@ -337,3 +337,308 @@ test('useCatalogSearch: triggerSearchNow executes immediately and cancels pendin
     globalThis.fetch = originalFetch
   }
 })
+
+test('Deduplication: duplicate item with same source and same ID is ignored', async () => {
+  const originalFetch = globalThis.fetch
+  const stream = createMockSseStream()
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    body: stream.stream,
+  })
+
+  try {
+    const search = useCatalogSearch({ baseUrl: 'http://localhost:8020', debounceMs: 10 })
+    search.searchTerm.value = 'soto'
+    await delay(25)
+
+    const searchId = search.activeSearchId.value
+
+    stream.pushEvent('source_result', {
+      search_id: searchId,
+      source: { code: 'larissama', name: 'Larissama F&B' },
+      data: [
+        { id: 'item-100', name: 'Soto Ayam Asli' },
+        { id: 'item-100', name: 'Soto Ayam Duplicate' }, // Duplicate from same source
+        { id: 'item-101', name: 'Soto Daging' },
+      ],
+    })
+    await delay(10)
+
+    assert.equal(search.searchResults.value.length, 2)
+    assert.equal(search.searchResults.value[0].name, 'Soto Ayam Asli')
+    assert.equal(search.searchResults.value[1].name, 'Soto Daging')
+  } finally {
+    stream.close()
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('Deduplication: items with same ID but different source codes are both preserved', async () => {
+  const originalFetch = globalThis.fetch
+  const stream = createMockSseStream()
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    body: stream.stream,
+  })
+
+  try {
+    const search = useCatalogSearch({ baseUrl: 'http://localhost:8020', debounceMs: 10 })
+    search.searchTerm.value = 'paket'
+    await delay(25)
+
+    const searchId = search.activeSearchId.value
+
+    // Source A sends item-100
+    stream.pushEvent('source_result', {
+      search_id: searchId,
+      source: { code: 'larissama', name: 'Larissama F&B' },
+      data: [{ id: 'item-100', name: 'Paket Hemat Makan' }],
+    })
+    // Source B sends item-100
+    stream.pushEvent('source_result', {
+      search_id: searchId,
+      source: { code: 'laundry', name: 'Laundry' },
+      data: [{ id: 'item-100', name: 'Paket Cuci Kiloan' }],
+    })
+    await delay(10)
+
+    assert.equal(search.searchResults.value.length, 2, 'Cross-source same ID must both be displayed')
+    assert.equal(search.searchResults.value[0].name, 'Paket Hemat Makan')
+    assert.equal(search.searchResults.value[0].source.code, 'larissama')
+    assert.equal(search.searchResults.value[1].name, 'Paket Cuci Kiloan')
+    assert.equal(search.searchResults.value[1].source.code, 'laundry')
+  } finally {
+    stream.close()
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('Deduplication: reset on new search query', async () => {
+  const originalFetch = globalThis.fetch
+  const stream1 = createMockSseStream()
+  const stream2 = createMockSseStream()
+  let callCount = 0
+
+  globalThis.fetch = async () => {
+    callCount++
+    const s = callCount === 1 ? stream1 : stream2
+    return {
+      ok: true,
+      status: 200,
+      body: s.stream,
+    }
+  }
+
+  try {
+    const search = useCatalogSearch({ baseUrl: 'http://localhost:8020', debounceMs: 15 })
+
+    // Search 1
+    search.searchTerm.value = 'query1'
+    await delay(25)
+    const s1Id = search.activeSearchId.value
+
+    stream1.pushEvent('source_result', {
+      search_id: s1Id,
+      source: { code: 'larissama', name: 'Larissama F&B' },
+      data: [{ id: 'item-reuse', name: 'Menu Query 1' }],
+    })
+    await delay(10)
+    assert.equal(search.searchResults.value.length, 1)
+
+    // Search 2: query change
+    search.searchTerm.value = 'query2'
+    await delay(25)
+    const s2Id = search.activeSearchId.value
+
+    // Search 2 receives the same ID 'item-reuse' from larissama
+    stream2.pushEvent('source_result', {
+      search_id: s2Id,
+      source: { code: 'larissama', name: 'Larissama F&B' },
+      data: [{ id: 'item-reuse', name: 'Menu Query 2 Fresh' }],
+    })
+    await delay(10)
+
+    assert.equal(search.searchResults.value.length, 1)
+    assert.equal(search.searchResults.value[0].name, 'Menu Query 2 Fresh')
+  } finally {
+    stream1.close()
+    stream2.close()
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('Error Handling: isAllFailed is true only when all sources failed and search completed', async () => {
+  const originalFetch = globalThis.fetch
+  const stream = createMockSseStream()
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    body: stream.stream,
+  })
+
+  try {
+    const search = useCatalogSearch({ baseUrl: 'http://localhost:8020', debounceMs: 10 })
+    search.searchTerm.value = 'rusak'
+    await delay(25)
+
+    const searchId = search.activeSearchId.value
+
+    stream.pushEvent('search_init', {
+      search_id: searchId,
+      targets: ['larissama', 'laundry'],
+    })
+    await delay(10)
+
+    // While search is still running, isAllFailed must be FALSE
+    assert.equal(search.isAllFailed.value, false)
+
+    stream.pushEvent('source_failed', {
+      search_id: searchId,
+      source: 'larissama',
+      message: 'Timeout 1',
+    })
+    await delay(10)
+    // Only 1 of 2 failed, still in-flight
+    assert.equal(search.isAllFailed.value, false)
+
+    stream.pushEvent('source_failed', {
+      search_id: searchId,
+      source: 'laundry',
+      message: 'Timeout 2',
+    })
+    await delay(10)
+    // Both failed but search_done not yet received (isSearching is still true)
+    assert.equal(search.isAllFailed.value, false)
+
+    // search_done arrives
+    stream.pushEvent('search_done', {
+      search_id: searchId,
+      total_items: 0,
+    })
+    await delay(10)
+
+    // Now search is complete and all sources failed
+    assert.equal(search.isSearching.value, false)
+    assert.equal(search.searchResults.value.length, 0)
+    assert.equal(search.isAllFailed.value, true)
+    assert.equal(search.hasPartialFailure.value, false)
+  } finally {
+    stream.close()
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('Error Handling: hasPartialFailure is true when some sources completed and some failed', async () => {
+  const originalFetch = globalThis.fetch
+  const stream = createMockSseStream()
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    body: stream.stream,
+  })
+
+  try {
+    const search = useCatalogSearch({ baseUrl: 'http://localhost:8020', debounceMs: 10 })
+    search.searchTerm.value = 'campur'
+    await delay(25)
+
+    const searchId = search.activeSearchId.value
+
+    stream.pushEvent('search_init', {
+      search_id: searchId,
+      targets: ['larissama', 'laundry'],
+    })
+    // 1 source succeeds
+    stream.pushEvent('source_result', {
+      search_id: searchId,
+      source: { code: 'larissama', name: 'Larissama F&B' },
+      data: [{ id: '1', name: 'Item Sukses' }],
+      meta: { total: 1 },
+    })
+    // 1 source fails
+    stream.pushEvent('source_failed', {
+      search_id: searchId,
+      source: 'laundry',
+      message: 'Gagal',
+    })
+    stream.pushEvent('search_done', {
+      search_id: searchId,
+      total_items: 1,
+    })
+    await delay(15)
+
+    assert.equal(search.isSearching.value, false)
+    assert.equal(search.searchResults.value.length, 1)
+    assert.equal(search.isAllFailed.value, false, 'Must not be marked all-failed when some succeeded')
+    assert.equal(search.hasPartialFailure.value, true)
+  } finally {
+    stream.close()
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('Error Handling: network failure or HTTP 500 sets searchError cleanly', async () => {
+  const originalFetch = globalThis.fetch
+
+  globalThis.fetch = async () => ({
+    ok: false,
+    status: 500,
+  })
+
+  try {
+    const search = useCatalogSearch({ baseUrl: 'http://localhost:8020', debounceMs: 10 })
+    search.searchTerm.value = 'error500'
+    await delay(25)
+
+    assert.equal(search.isSearching.value, false)
+    assert.equal(search.searchResults.value.length, 0)
+    assert.ok(search.searchError.value.includes('HTTP 500'))
+    assert.equal(search.isAllFailed.value, false, 'Network/HTTP error must not trigger isAllFailed')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('Retry button / triggerSearchNow retries active query after failure', async () => {
+  const originalFetch = globalThis.fetch
+  const fetchCalls = []
+  let attempts = 0
+
+  globalThis.fetch = async (url, options) => {
+    attempts++
+    fetchCalls.push(JSON.parse(options.body))
+    if (attempts === 1) {
+      return { ok: false, status: 503 }
+    }
+    const stream = createMockSseStream()
+    setTimeout(() => {
+      stream.pushEvent('search_done', { search_id: fetchCalls[1].search_id, total_items: 0 })
+    }, 5)
+    return { ok: true, status: 200, body: stream.stream }
+  }
+
+  try {
+    const search = useCatalogSearch({ baseUrl: 'http://localhost:8020', debounceMs: 10 })
+    search.searchTerm.value = 'coba_lagi'
+    await delay(25)
+
+    assert.equal(fetchCalls.length, 1)
+    assert.ok(search.searchError.value.includes('HTTP 503'))
+
+    // User clicks "Coba Lagi" -> calls triggerSearchNow()
+    search.triggerSearchNow()
+    await delay(25)
+
+    assert.equal(fetchCalls.length, 2, 'Retry must execute new search')
+    assert.equal(fetchCalls[1].query, 'coba_lagi')
+    assert.equal(search.searchError.value, null, 'Error must be reset upon retry')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
