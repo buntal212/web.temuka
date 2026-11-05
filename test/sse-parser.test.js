@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { consumeSseStream } from '../src/shared/utils/sse-parser.js'
+import { consumeSseStream } from 'src/shared/utils/sse-parser.js'
 
 function createMockReader(chunks) {
   const encoder = new TextEncoder()

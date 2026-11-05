@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { resolveSourceName, KNOWN_SOURCE_NAMES } from '../src/shared/utils/source-helpers.js'
+import { resolveSourceName, KNOWN_SOURCE_NAMES } from 'src/shared/utils/source-helpers.js'
 
 test('resolveSourceName: uses explicit dynamic name when provided', () => {
   assert.equal(resolveSourceName('larissama', 'Larissama F&B Express'), 'Larissama F&B Express')

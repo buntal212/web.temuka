@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { useCatalogSearch } from '../src/modules/beranda/composables/useCatalogSearch.js'
+import { useCatalogSearch } from 'src/modules/beranda/composables/useCatalogSearch.js'
 
 function createMockSseStream() {
   let controller

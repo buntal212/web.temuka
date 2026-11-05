@@ -52,7 +52,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { resolveSourceName } from '../../../shared/utils/source-helpers.js'
+import { resolveSourceName } from 'src/shared/utils/source-helpers.js'
 
 const props = defineProps({ item: { type: Object, required: true } })
 

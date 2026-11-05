@@ -116,7 +116,7 @@
 </template>
 
 <script setup>
-import { resolveSourceName } from '../../../shared/utils/source-helpers.js'
+import { resolveSourceName } from 'src/shared/utils/source-helpers.js'
 
 defineProps({
   modelValue: { type: String, default: '' },
