@@ -42,7 +42,7 @@
     <div v-else-if="items.length" class="recommendation-grid">
       <ProductCard
         v-for="(item, idx) in items"
-        :key="item.id || item.offer?.id || idx"
+        :key="item.id || idx"
         :item="item"
       />
     </div>

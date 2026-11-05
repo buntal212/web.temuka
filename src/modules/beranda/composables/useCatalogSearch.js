@@ -80,8 +80,11 @@ export function useCatalogSearch(options = {}) {
             const targets = data.targets || []
             const newStatuses = {}
             for (const target of targets) {
-              newStatuses[target] = {
+              const code = typeof target === 'object' && target !== null ? target.code : target
+              const name = typeof target === 'object' && target !== null ? target.name : code
+              newStatuses[code] = {
                 status: 'pending',
+                name: name,
                 count: 0,
                 error: null,
               }
@@ -91,24 +94,51 @@ export function useCatalogSearch(options = {}) {
           }
 
           case 'source_result': {
-            const sourceCode = data.source
+            const rawSource = data.source
+            const sourceCode =
+              typeof rawSource === 'object' && rawSource !== null ? rawSource.code : rawSource
+            const sourceName =
+              typeof rawSource === 'object' && rawSource !== null ? rawSource.name : sourceCode
             const items = data.data || []
+            // Canonical v1 prefers meta.total, with items_count as fallback alias
+            const totalCount = data.meta?.total ?? data.items_count ?? items.length
 
             sourcesStatus.value[sourceCode] = {
               status: 'completed',
-              count: data.items_count ?? items.length,
+              name: sourceName,
+              count: totalCount,
               error: null,
             }
 
+            // Ensure items have source attached if missing
+            const normalizedItems = items.map((item) => {
+              if (!item.source && sourceCode) {
+                return {
+                  ...item,
+                  source:
+                    typeof rawSource === 'object' && rawSource !== null
+                      ? rawSource
+                      : { code: sourceCode, name: sourceName },
+                }
+              }
+              return item
+            })
+
             // Append progressive items to active search results
-            searchResults.value.push(...items)
+            searchResults.value.push(...normalizedItems)
             break
           }
 
           case 'source_failed': {
-            const sourceCode = data.source
+            const rawSource = data.source
+            const sourceCode =
+              typeof rawSource === 'object' && rawSource !== null ? rawSource.code : rawSource
+            const sourceName =
+              typeof rawSource === 'object' && rawSource !== null ? rawSource.name : sourceCode
+
             sourcesStatus.value[sourceCode] = {
               status: 'failed',
+              name: sourceName,
               count: 0,
               error: data.message || 'Gagal memuat',
             }

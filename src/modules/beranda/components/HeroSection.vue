@@ -62,7 +62,7 @@
               <q-spinner-tail v-if="info.status === 'pending'" size="0.75rem" />
               <q-icon v-else-if="info.status === 'completed'" name="check_circle" size="0.85rem" />
               <q-icon v-else-if="info.status === 'failed'" name="error_outline" size="0.85rem" />
-              {{ formatSourceName(srcKey) }}:
+              {{ info.name || formatSourceName(srcKey) }}:
               <strong v-if="info.status === 'completed'">{{ info.count }} hasil</strong>
               <strong v-else-if="info.status === 'failed'">Gagal</strong>
               <span v-else>Memuat...</span>

@@ -1,12 +1,24 @@
 <template>
   <article class="product-card">
     <div class="product-card__image image-frame">
-      <q-img :src="displayImage" :alt="displayName" ratio="1.55" loading="lazy">
+      <q-img
+        v-if="displayImageUrl"
+        :src="displayImageUrl"
+        :alt="displayName"
+        ratio="1.55"
+        loading="lazy"
+      >
         <template #error>
-          <div class="product-card__fallback"><q-icon name="image" aria-hidden="true" /></div>
+          <div class="product-card__fallback">
+            <q-icon name="image" aria-hidden="true" />
+          </div>
         </template>
       </q-img>
-      <span class="product-card__category">{{ displayCategory }}</span>
+      <div v-else class="product-card__fallback" :aria-label="displayName">
+        <q-icon name="image" aria-hidden="true" />
+      </div>
+
+      <span v-if="displayCategory" class="product-card__category">{{ displayCategory }}</span>
       <q-btn
         class="product-card__favorite"
         round
@@ -23,11 +35,14 @@
       <div class="product-card__title-row">
         <div>
           <h3>{{ displayName }}</h3>
-          <p class="product-card__provider">{{ displayProvider }}</p>
+          <p v-if="displayProvider" class="product-card__provider">{{ displayProvider }}</p>
         </div>
       </div>
       <div class="product-card__meta">
-        <span><q-icon name="place" aria-hidden="true" /> {{ displayLocation }}</span>
+        <span v-if="displayLocation">
+          <q-icon name="place" aria-hidden="true" /> {{ displayLocation }}
+        </span>
+        <span v-else></span>
         <strong>{{ displayMetaRight }}</strong>
       </div>
       <span class="product-card__demo">{{ displayBadge }}</span>
@@ -40,30 +55,95 @@ import { computed } from 'vue'
 
 const props = defineProps({ item: { type: Object, required: true } })
 
-const displayName = computed(() => props.item.offer?.name || props.item.name || 'Tanpa Nama')
-const displayProvider = computed(() => props.item.provider?.name || props.item.provider || 'Penyedia')
-const displayLocation = computed(() => props.item.location?.address || props.item.location || 'Lokasi umum')
-const displayImage = computed(() => props.item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80')
+const displayName = computed(() => props.item.name || props.item.offer?.name || 'Tanpa Nama')
+
+const displayProvider = computed(() => {
+  if (props.item.provider && typeof props.item.provider === 'object') {
+    return props.item.provider.name || ''
+  }
+  if (typeof props.item.provider === 'string') {
+    return props.item.provider
+  }
+  return ''
+})
+
+const displayLocation = computed(() => {
+  if (props.item.provider?.location?.address) {
+    return props.item.provider.location.address
+  }
+  if (typeof props.item.location === 'string') {
+    return props.item.location
+  }
+  return null
+})
+
+const displayImageUrl = computed(() => {
+  const img = props.item.image
+  if (!img) return null
+  if (typeof img === 'object' && typeof img.url === 'string' && img.url.trim() !== '') {
+    return img.url.trim()
+  }
+  if (typeof img === 'string' && img.trim() !== '') {
+    return img.trim()
+  }
+  return null
+})
 
 const displayCategory = computed(() => {
-  if (props.item.source?.code) {
-    const code = props.item.source.code
-    if (code === 'mock_larissama') return 'Kuliner'
-    if (code === 'mock_laundry') return 'Laundry'
-    if (code === 'mock_aset') return 'Aset'
-    return code
+  if (props.item.category && typeof props.item.category === 'string') {
+    return props.item.category.trim()
   }
-  return props.item.category || 'Katalog'
+  return null
+})
+
+const displayPrice = computed(() => {
+  const price = props.item.price
+  if (!price) return null
+
+  // Support demo recommendation string price
+  if (typeof price === 'string') {
+    return price.trim() || null
+  }
+
+  // Canonical Catalog v1: { amount: number, currency: string }
+  if (typeof price === 'object' && typeof price.amount === 'number') {
+    const currency = price.currency || 'IDR'
+    if (currency === 'IDR') {
+      return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        maximumFractionDigits: 0,
+      }).format(price.amount)
+    }
+    return `${currency} ${price.amount.toLocaleString()}`
+  }
+
+  return null
+})
+
+const displayAvailability = computed(() => {
+  if (props.item.availability === 'available') return 'Tersedia'
+  if (props.item.availability === 'unavailable') return 'Tidak tersedia'
+  return null
 })
 
 const displayMetaRight = computed(() => {
-  if (props.item.price) return props.item.price
-  if (props.item.operational_status === 'open') return 'Buka sekarang'
-  if (props.item.availability === 'available') return 'Tersedia'
-  return props.item.offer?.type || 'Tersedia'
+  if (displayPrice.value) {
+    if (props.item.availability === 'unavailable') {
+      return `${displayPrice.value} (Habis)`
+    }
+    return displayPrice.value
+  }
+  if (displayAvailability.value) {
+    return displayAvailability.value
+  }
+  return ''
 })
 
 const displayBadge = computed(() => {
+  if (props.item.source?.name) {
+    return `Sumber: ${props.item.source.name}`
+  }
   if (props.item.source?.code) {
     return `Sumber: ${props.item.source.code}`
   }

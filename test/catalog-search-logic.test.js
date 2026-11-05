@@ -44,7 +44,9 @@ test('Latest Search Wins logic correctly ignores stale search events', () => {
     }
 
     if (eventName === 'source_result') {
-      sourcesStatus[data.source] = 'completed'
+      const srcCode =
+        typeof data.source === 'object' && data.source !== null ? data.source.code : data.source
+      sourcesStatus[srcCode] = 'completed'
       searchResults.push(...(data.data || []))
     } else if (eventName === 'search_done') {
       isSearching = false
@@ -61,8 +63,8 @@ test('Latest Search Wins logic correctly ignores stale search events', () => {
   // T500: Search 1 completes and emits event
   handleEvent('source_result', {
     search_id: 'search_1',
-    source: 'mock_larissama',
-    data: [{ offer: { name: 'Old Stale Result' } }],
+    source: { code: 'mock_larissama', name: 'Larissama F&B' },
+    data: [{ id: '1', name: 'Old Stale Result' }],
   })
 
   // Verify stale result was NOT added to searchResults
@@ -71,13 +73,13 @@ test('Latest Search Wins logic correctly ignores stale search events', () => {
   // T600: Search 2 completes and emits event
   handleEvent('source_result', {
     search_id: 'search_2',
-    source: 'mock_larissama',
-    data: [{ offer: { name: 'New Fresh Result' } }],
+    source: { code: 'mock_larissama', name: 'Larissama F&B' },
+    data: [{ id: '2', name: 'New Fresh Result' }],
   })
 
   // Verify new result WAS added
   assert.equal(searchResults.length, 1)
-  assert.equal(searchResults[0].offer.name, 'New Fresh Result')
+  assert.equal(searchResults[0].name, 'New Fresh Result')
 
   // T700: Search 1 emits search_done
   handleEvent('search_done', { search_id: 'search_1' })
@@ -127,9 +129,10 @@ test('useCatalogSearch: query change immediately marks previous search as stale 
     stream1.pushEvent('search_init', { search_id: search1Id, targets: ['mock_larissama'] })
     stream1.pushEvent('source_result', {
       search_id: search1Id,
-      source: 'mock_larissama',
+      source: { code: 'mock_larissama', name: 'Larissama F&B' },
+      meta: { total: 1 },
       items_count: 1,
-      data: [{ id: 1, title: 'Laptop Lama' }],
+      data: [{ id: '1', name: 'Laptop Lama' }],
     })
     await delay(10)
     assert.equal(search.searchResults.value.length, 1)
@@ -148,13 +151,14 @@ test('useCatalogSearch: query change immediately marks previous search as stale 
     // Step 3: DURING the debounce window (40ms), Search 1 emits late events
     stream1.pushEvent('source_result', {
       search_id: search1Id,
-      source: 'mock_another',
+      source: { code: 'mock_another', name: 'Sumber Lain' },
+      meta: { total: 1 },
       items_count: 1,
-      data: [{ id: 99, title: 'Late Stale Laptop Item' }],
+      data: [{ id: '99', name: 'Late Stale Laptop Item' }],
     })
     stream1.pushEvent('source_failed', {
       search_id: search1Id,
-      source: 'mock_failed',
+      source: { code: 'mock_failed', name: 'Sumber Gagal' },
       message: 'Failed on old search',
     })
     stream1.pushEvent('search_done', {
@@ -169,7 +173,7 @@ test('useCatalogSearch: query change immediately marks previous search as stale 
       1,
       'Stale events must not add items during debounce',
     )
-    assert.equal(search.searchResults.value[0].title, 'Laptop Lama')
+    assert.equal(search.searchResults.value[0].name, 'Laptop Lama')
     assert.equal(
       search.sourcesStatus.value.mock_another,
       undefined,
@@ -202,9 +206,10 @@ test('useCatalogSearch: query change immediately marks previous search as stale 
     stream2.pushEvent('search_init', { search_id: search2Id, targets: ['mock_larissama'] })
     stream2.pushEvent('source_result', {
       search_id: search2Id,
-      source: 'mock_larissama',
+      source: { code: 'mock_larissama', name: 'Larissama F&B' },
+      meta: { total: 1 },
       items_count: 1,
-      data: [{ id: 2, title: 'Sepatu Baru' }],
+      data: [{ id: '2', name: 'Sepatu Baru' }],
     })
     stream2.pushEvent('search_done', {
       search_id: search2Id,
@@ -213,7 +218,7 @@ test('useCatalogSearch: query change immediately marks previous search as stale 
     await delay(10)
 
     assert.equal(search.searchResults.value.length, 1)
-    assert.equal(search.searchResults.value[0].title, 'Sepatu Baru')
+    assert.equal(search.searchResults.value[0].name, 'Sepatu Baru')
     assert.equal(
       search.isSearching.value,
       false,
@@ -252,9 +257,10 @@ test('useCatalogSearch: clearing query immediately wipes search state and ignore
     // Deliver results for 'buku'
     stream1.pushEvent('source_result', {
       search_id: searchId,
-      source: 'mock_larissama',
+      source: { code: 'mock_larissama', name: 'Larissama F&B' },
+      meta: { total: 1 },
       items_count: 1,
-      data: [{ id: 10, title: 'Buku Resep' }],
+      data: [{ id: '10', name: 'Buku Resep' }],
     })
     await delay(10)
     assert.equal(search.searchResults.value.length, 1)
@@ -275,9 +281,10 @@ test('useCatalogSearch: clearing query immediately wipes search state and ignore
     // Late arriving events from in-flight request
     stream1.pushEvent('source_result', {
       search_id: searchId,
-      source: 'mock_sukses',
+      source: { code: 'mock_sukses', name: 'Sukses Source' },
+      meta: { total: 1 },
       items_count: 1,
-      data: [{ id: 20, title: 'Buku Panduan' }],
+      data: [{ id: '20', name: 'Buku Panduan' }],
     })
     stream1.pushEvent('search_done', {
       search_id: searchId,
