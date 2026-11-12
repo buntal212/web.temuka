@@ -1,22 +1,20 @@
 <template>
   <header class="mobile-header">
-    <a class="mobile-header__brand" href="#beranda" aria-label="Temuka, ke beranda">
+    <router-link class="mobile-header__brand" to="/" aria-label="Temuka, ke beranda">
       <img src="/images/temuka_192px.png" alt="" />
-    </a>
+    </router-link>
 
-    <q-btn
-      class="mobile-header__notifications"
-      flat
-      round
-      dense
-      icon="notifications_none"
-      aria-label="Notifikasi belum tersedia"
-      disable
-    >
-      <q-tooltip>Notifikasi belum tersedia.</q-tooltip>
-    </q-btn>
+    <AccountMenu v-if="authStore.isAuthenticated" />
+    <q-btn v-else class="mobile-header__account" flat dense to="/masuk" label="Masuk" />
   </header>
 </template>
+
+<script setup>
+import AccountMenu from 'src/modules/akun/components/AccountMenu.vue'
+import { useAuthStore } from 'src/modules/auth/stores/auth-store.js'
+
+const authStore = useAuthStore()
+</script>
 
 <style scoped lang="scss">
 .mobile-header {
@@ -53,9 +51,11 @@
     height: auto;
   }
 
-  .mobile-header__notifications {
+  .mobile-header__account {
     flex: 0 0 auto;
-    color: var(--temuka-on-dark-muted);
+    max-width: 9rem;
+    color: var(--temuka-gold);
+    font-weight: 700;
   }
 }
 </style>

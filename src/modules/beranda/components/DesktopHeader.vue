@@ -1,27 +1,39 @@
 <template>
   <header class="desktop-header">
     <div class="section-shell desktop-header__inner">
-      <a class="brand-mark" href="#beranda" aria-label="Temuka, ke beranda">
+      <router-link class="brand-mark" to="/" aria-label="Temuka, ke beranda">
         <img src="/images/temuka_512px.png" alt="" />
-      </a>
+      </router-link>
 
       <nav class="desktop-header__links" aria-label="Navigasi utama">
-        <a class="is-current" href="#beranda" aria-current="page">Beranda</a>
-        <a href="#kategori-kuliner">Kuliner</a>
-        <a href="#kategori-properti">Aset</a>
-        <a href="#kategori-laundry">Laundry</a>
-        <a href="#kategori-jasa">Jasa</a>
-        <a href="#kategori-lainnya">Lainnya</a>
+        <router-link to="/" :class="{ 'is-current': route.path === '/' }">Beranda</router-link>
+        <a :href="sectionHref('kategori-kuliner')">Kuliner</a>
+        <a :href="sectionHref('kategori-properti')">Aset</a>
+        <a :href="sectionHref('kategori-laundry')">Laundry</a>
+        <a :href="sectionHref('kategori-jasa')">Jasa</a>
+        <a :href="sectionHref('kategori-lainnya')">Lainnya</a>
       </nav>
 
       <div class="desktop-header__actions">
-        <q-btn outline color="secondary" label="Masuk / Daftar" disable>
-          <q-tooltip>Fitur akun belum tersedia.</q-tooltip>
-        </q-btn>
+        <AccountMenu v-if="authStore.isAuthenticated" />
+        <q-btn v-else to="/masuk" outline color="secondary" label="Masuk / Daftar" />
       </div>
     </div>
   </header>
 </template>
+
+<script setup>
+import AccountMenu from 'src/modules/akun/components/AccountMenu.vue'
+import { useAuthStore } from 'src/modules/auth/stores/auth-store.js'
+import { useRoute } from 'vue-router'
+
+const authStore = useAuthStore()
+const route = useRoute()
+
+function sectionHref(sectionId) {
+  return route.path === '/' ? `#${sectionId}` : `/#${sectionId}`
+}
+</script>
 
 <style scoped lang="scss">
 .desktop-header {

@@ -1,0 +1,121 @@
+.auth-page {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100svh;
+  place-items: center;
+  padding: 2.5rem 1rem max(2rem, env(safe-area-inset-bottom));
+  background: var(--temuka-background);
+  color: #fff;
+}
+
+.auth-page__content {
+  display: flex;
+  width: min(100%, 29rem);
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.auth-page__brand {
+  display: block;
+  width: min(9.5rem, 48vw);
+}
+
+.auth-page__brand img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.auth-page :deep(.auth-form) {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.auth-page :deep(.auth-form > *) {
+  width: 100%;
+  margin: 0;
+}
+
+.auth-page :deep(.q-field__label),
+.auth-page :deep(.q-field__native),
+.auth-page :deep(.q-field__input) {
+  color: var(--temuka-ink);
+}
+
+.auth-page :deep(.q-field__label) {
+  font-weight: 550;
+}
+
+.auth-page :deep(.q-field__control) {
+  border-radius: 0.75rem;
+  background: var(--temuka-surface);
+}
+
+.auth-page :deep(.q-field--outlined .q-field__control:before) {
+  border-color: var(--temuka-border);
+}
+
+.auth-page :deep(.q-field--outlined.q-field--focused .q-field__control:after) {
+  border-width: 2px;
+}
+
+.auth-page :deep(.q-field__bottom) {
+  color: var(--temuka-muted);
+  font-size: 0.75rem;
+}
+
+.auth-page :deep(.q-field--error .q-field__bottom) {
+  color: var(--temuka-error);
+}
+
+.auth-submit {
+  display: flex;
+  width: 100%;
+  margin: 0;
+  min-height: 3.125rem;
+  border-radius: 0.75rem;
+  font-weight: 750;
+}
+
+.auth-page :deep(.auth-submit .q-btn__content) {
+  justify-content: center;
+}
+
+.auth-message--error {
+  background: color-mix(in srgb, var(--temuka-error) 10%, var(--temuka-surface));
+  color: var(--temuka-error);
+  line-height: 1.5;
+}
+
+.auth-page a:not(.auth-page__brand) {
+  border-radius: 0.2rem;
+  color: var(--temuka-primary);
+  font-weight: 700;
+  text-underline-offset: 0.18em;
+}
+
+.auth-page a:not(.auth-page__brand):hover {
+  color: var(--temuka-primary-hover);
+}
+
+.auth-page a:focus-visible {
+  outline-color: var(--temuka-focus);
+}
+
+.auth-page--register {
+  padding-block-start: 1.75rem;
+}
+
+@media (max-height: 760px) {
+  .auth-page {
+    align-content: start;
+  }
+
+  .auth-page__content {
+    margin-block: 0 auto;
+  }
+}

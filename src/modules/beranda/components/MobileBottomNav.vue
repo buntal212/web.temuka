@@ -1,9 +1,14 @@
 <template>
   <nav class="mobile-bottom-nav" aria-label="Navigasi bawah">
-    <a class="mobile-bottom-nav__item is-active" href="#beranda" aria-current="page">
+    <router-link
+      class="mobile-bottom-nav__item"
+      :class="{ 'is-active': route.path === '/' }"
+      to="/"
+      :aria-current="route.path === '/' ? 'page' : undefined"
+    >
       <q-icon name="home" aria-hidden="true" />
       <span>Beranda</span>
-    </a>
+    </router-link>
     <a class="mobile-bottom-nav__item" href="#pencarian">
       <q-icon name="search" aria-hidden="true" />
       <span>Cari</span>
@@ -26,12 +31,23 @@
       <q-icon name="chat_bubble_outline" aria-hidden="true" />
       <span>Pesan</span>
     </button>
-    <button class="mobile-bottom-nav__item" type="button" disabled aria-label="Akun belum tersedia">
+    <router-link
+      class="mobile-bottom-nav__item"
+      :class="{ 'is-active': route.path.startsWith('/akun') }"
+      to="/akun"
+      :aria-current="route.path.startsWith('/akun') ? 'page' : undefined"
+    >
       <q-icon name="person_outline" aria-hidden="true" />
       <span>Akun</span>
-    </button>
+    </router-link>
   </nav>
 </template>
+
+<script setup>
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+</script>
 
 <style scoped lang="scss">
 .mobile-bottom-nav {

@@ -1,5 +1,33 @@
 # Changelog web.temuka
 
+## 2026-11-13 — Menu dan halaman akun
+
+- Menambahkan menu akun yang sama pada header desktop dan mobile, termasuk ringkasan identitas dan aksi keluar.
+- Menambahkan halaman `/akun` baca-saja serta mengaktifkan navigasi Akun di mobile.
+- Halaman akun menunggu pemeriksaan Bearer token dan mengarahkan pengguna tamu ke halaman masuk.
+
+## 2026-11-13 — Feedback setelah pendaftaran
+
+- Menampilkan notifikasi setelah akun berhasil dibuat dan mengarahkan pelanggan ke halaman masuk.
+- Pendaftaran tidak lagi otomatis menyimpan token atau membuka sesi login.
+
+## 2026-11-13 — Autentikasi Bearer Token
+
+- Mengganti alur cookie/CSRF menjadi Bearer token Sanctum.
+- Menyimpan token per tab di `sessionStorage`, memulihkan profil saat reload, dan menghapus token saat logout.
+- Memperbarui kontrak API dan README modul autentikasi.
+
+## 2026-11-12 — PLAN-04 Poles Halaman Autentikasi
+
+- Mempertahankan latar hijau gelap Temuka dan meningkatkan kontras kartu serta field form.
+- Merapikan hierarki heading, jarak, tombol, footer, fokus keyboard, dan pesan error pada layar kecil maupun desktop.
+
+## 2026-11-09 — PLAN-03 Autentikasi Pelanggan
+
+- Menambahkan halaman masuk username/password dan pendaftaran nama, email, username, serta password.
+- Menghubungkan form ke API sesi Sanctum, menambahkan pemulihan sesi saat aplikasi dimuat, serta tombol keluar.
+- Menambahkan kontrak endpoint autentikasi dan dokumentasi modul.
+
 ## 2026-10-30 — PLAN-01 Homepage TEMUKA
 
 - Mengganti scaffold halaman awal Quasar dengan homepage publik responsif dan design tokens TEMUKA.
