@@ -10,7 +10,7 @@
     <q-avatar class="account-menu__avatar" size="2rem">
       {{ userInitial }}
     </q-avatar>
-    <span class="account-menu__name">{{ authStore.user?.name }}</span>
+    <!-- <span class="account-menu__name">{{ authStore.user?.name }}</span> -->
     <q-icon name="expand_more" aria-hidden="true" />
 
     <q-menu v-model="isMenuOpen" anchor="bottom right" self="top right" :offset="[0, 10]">
@@ -97,6 +97,7 @@ async function signOut() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding-left: 0.5rem;
 }
 
 .account-menu__panel {

@@ -4,7 +4,14 @@
       <img src="/images/temuka_192px.png" alt="" />
     </router-link>
 
-    <AccountMenu v-if="authStore.isAuthenticated" />
+    <q-skeleton
+      v-if="!authStore.isReady"
+      class="mobile-header__account-loading"
+      type="rect"
+      animation="fade"
+      aria-hidden="true"
+    />
+    <AccountMenu v-else-if="authStore.isAuthenticated" />
     <q-btn v-else class="mobile-header__account" flat dense to="/masuk" label="Masuk" />
   </header>
 </template>
@@ -56,6 +63,13 @@ const authStore = useAuthStore()
     max-width: 9rem;
     color: var(--temuka-gold);
     font-weight: 700;
+  }
+
+  .mobile-header__account-loading {
+    width: 5.5rem;
+    height: 2.5rem;
+    border-radius: 0.75rem;
+    background: rgb(255 255 255 / 13%);
   }
 }
 </style>

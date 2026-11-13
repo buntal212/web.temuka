@@ -15,8 +15,17 @@
       </nav>
 
       <div class="desktop-header__actions">
-        <AccountMenu v-if="authStore.isAuthenticated" />
-        <q-btn v-else to="/masuk" outline color="secondary" label="Masuk / Daftar" />
+        <q-skeleton
+          v-if="!authStore.isReady"
+          class="desktop-header__auth-loading"
+          type="rect"
+          animation="fade"
+          aria-hidden="true"
+        />
+        <template v-else>
+          <AccountMenu v-if="authStore.isAuthenticated" />
+          <q-btn v-else to="/masuk" outline color="secondary" label="Masuk / Daftar" />
+        </template>
       </div>
     </div>
   </header>
@@ -92,6 +101,13 @@ function sectionHref(sectionId) {
 
 .desktop-header__actions {
   gap: 1rem;
+}
+
+.desktop-header__auth-loading {
+  width: 10.5rem;
+  height: 2.875rem;
+  border-radius: 0.875rem;
+  background: rgb(255 255 255 / 13%);
 }
 
 @media (max-width: 1023.98px) {

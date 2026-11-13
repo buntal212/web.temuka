@@ -1,5 +1,10 @@
 # Changelog web.temuka
 
+## 2026-11-13 — Stabilitas tombol akun saat halaman dimuat ulang
+
+- Menahan tombol masuk/daftar hingga pemulihan status token selesai agar akun aktif tidak sempat terlihat sebagai pengunjung.
+- Menyediakan placeholder header dengan ukuran tetap selama status auth diperiksa.
+
 ## 2026-11-13 — Menu dan halaman akun
 
 - Menambahkan menu akun yang sama pada header desktop dan mobile, termasuk ringkasan identitas dan aksi keluar.
